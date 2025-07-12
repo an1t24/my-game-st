@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لعبة التحدي</title>
+  <style>
+    body {
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #game {
+      width: 400px;
+      height: 300px;
+      margin: 50px auto;
+      border: 2px solid white;
+      position: relative;
+      overflow: hidden;
+      background-color: #222;
+      touch-action: none;
+    }
+    #player {
+      width: 30px;
+      height: 30px;
+      background-color: lime;
+      position: absolute;
+      bottom: 10px;
+      left: 180px;
+      transition: left 0.1s linear;
+    }
+    .obstacle {
+      width: 30px;
+      height: 30px;
+      background-color: red;
+      position: absolute;
+      top: 0;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🟩 لعبة التحدي</h1>
+<div id="game">
+  <div id="player"></div>
+</div>
+<div id="status">المستوى: 1</div>
+
+<script>
+  const game = document.getElementById("game");
+  const player = document.getElementById("player");
+  const statusText = document.getElementById("status");
+
+  let level = 1;
+  let speed = 2;
+  let obstacles = [];
+  let gameRunning = true;
+
+  let playerColors = ["lime", "cyan", "yellow", "magenta", "orange"];
+  let backgroundColors = ["#222", "#333", "#444", "#555", "#666"];
+
+  function updateAppearance() {
+    const index = Math.floor(level / 10) % playerColors.length;
+    player.style.backgroundColor = playerColors[index];
+    game.style.backgroundColor = backgroundColors[index];
+  }
+
+  player.style.left = "180px";
+
+  document.addEventListener("keydown", (e) => {
+    if (!gameRunning) return;
+    const currentLeft = parseInt(player.style.left);
+    if (e.key === "ArrowRight" && currentLeft < 370) {
+      player.style.left = currentLeft + 20 + "px";
+    } else if (e.key === "ArrowLeft" && currentLeft > 0) {
+      player.style.left = currentLeft - 20 + "px";
+    }
+  });
+
+  let touchStartX = 0;
+  let touchEndX = 0;
+  let playerMoving = false;
+  const longSwipeThreshold = 60;
+
+  game.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+  }, { passive: true });
+
+  game.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].clientX;
+    handleSwipe();
+  }, { passive: true });
+
+  function handleSwipe() {
+    if (!gameRunning || playerMoving) return;
+    const deltaX = touchEndX - touchStartX;
+    const absDeltaX = Math.abs(deltaX);
+    const currentLeft = parseInt(player.style.left);
+
+    if (absDeltaX > 20) {
+      let moveAmount = 20;
+      if (absDeltaX > longSwipeThreshold) {
+        moveAmount = 80;
+        playerMoving = true;
+        setTimeout(() => playerMoving = false, 150);
+      }
+      let newLeft = currentLeft + (deltaX > 0 ? moveAmount : -moveAmount);
+      if (newLeft < 0) newLeft = 0;
+      if (newLeft > 370) newLeft = 370;
+      player.style.left = newLeft + "px";
+    }
+  }
+
+  function createObstacle() {
+    const obs = document.createElement("div");
+    obs.className = "obstacle";
+    obs.style.left = Math.floor(Math.random() * 370) + "px";
+    obs.style.top = "0px";
+    game.appendChild(obs);
+    obstacles.push(obs);
+  }
+
+  function updateObstacles() {
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const obs = obstacles[i];
+      const top = parseInt(obs.style.top);
+      obs.style.top = top + speed + "px";
+
+      const obsLeft = parseInt(obs.style.left);
+      const playerLeft = parseInt(player.style.left);
+
+      if (top >= 250 && top <= 290 && Math.abs(obsLeft - playerLeft) < 30) {
+        gameRunning = false;
+        statusText.textContent = `💀 خسرت في المستوى ${level}... اضغط لإعادة اللعب`;
+        document.addEventListener("keydown", restartGame, { once: true });
+        game.addEventListener("touchstart", restartGame, { once: true });
+      }
+
+      if (top > 300) {
+        game.removeChild(obs);
+        obstacles.splice(i, 1);
+        if (gameRunning) {
+          level++;
+          speed += 0.3;
+          statusText.textContent = `المستوى: ${level}`;
+          if (level % 10 === 0) updateAppearance();
+        }
+      }
+    }
+  }
+
+  function restartGame() {
+    gameRunning = true;
+    statusText.textContent = `المستوى: ${level}`;
+    obstacles.forEach(o => o.remove());
+    obstacles = [];
+  }
+
+  function gameLoop() {
+    if (gameRunning) updateObstacles();
+    requestAnimationFrame(gameLoop);
+  }
+
+  setInterval(() => {
+    if (gameRunning) createObstacle();
+  }, 1500);
+
+  gameLoop();
+</script>
+
+</body>
+</html>
